@@ -2,6 +2,8 @@
 ''' filtered_logger.py '''
 import logging
 import re
+import os
+import mysql.connector
 from typing import List
 
 
@@ -28,6 +30,21 @@ def get_logger() -> logging.Logger:
 
     logger.addHandler(stream_handler)
     return logger
+
+
+def get_db() -> mysql.connector.connection.MySQLConnection:
+    ''' returns connector to MySQL db '''
+    username = os.getenv("PERSONAL_DATA_DB_USERNAME", "root")
+    password = os.getenv("PERSONAL_DATA_DB_PASSWORD", "")
+    host = os.getenv("PERSONAL_DATA_DB_HOST", "localhost")
+    database = os.getenv("PERSONAL_DATA_DB_NAME")
+    db = mysql.connector.connect(
+            user=username,
+            password=password,
+            host=host,
+            database=database
+    )
+    return db
 
 
 class RedactingFormatter(logging.Formatter):
