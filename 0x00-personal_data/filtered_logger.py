@@ -47,6 +47,28 @@ def get_db() -> mysql.connector.connection.MySQLConnection:
     return db
 
 
+def main():
+    ''' obtains db connection & displays user data '''
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger("user_data")
+    logger.propagate = False
+    stream_handler = logging.StreamHandler()
+    formatter = RedactingFormatter(['name', 'email', 'phone', 'ssn', 'password'])
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+    db = get_db()
+    cursor = db.cursor()
+
+    cursor.execute("SELECT * FROM users;")
+    rows = cursor.fetchall()
+    for row in rows:
+        user_data = "; ".join(f"{field}={formatter.REDACTION}" for field in row)
+        logger.info(user_data)
+
+    cursor.close()
+    db.close()
+
+
 class RedactingFormatter(logging.Formatter):
     """ Redacting Formatter class
         """
