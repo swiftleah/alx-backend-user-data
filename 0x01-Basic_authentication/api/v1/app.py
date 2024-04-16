@@ -3,6 +3,7 @@
 from flask import Flask, jsonify, request, abort
 from api.v1.views.index import app_views
 from api.v1.auth.auth import Auth
+from api.v1.auth.basic_auth import BasicAuth
 from os import getenv
 import os
 
@@ -14,8 +15,13 @@ app.register_blueprint(app_views)
 auth = None
 
 
-if os.getenv('AUTH_TYPE') == 'auth':
-    from api.v1.auth.auth import Auth
+auth_type = os.getenv('AUTH_TYPE')
+
+
+if auth_type == 'basic_auth':
+    from api.v1.auth.basic_auth import BasicAuth
+    auth = BasicAuth()
+else:
     auth = Auth()
 
 
