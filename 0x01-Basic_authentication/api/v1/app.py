@@ -1,11 +1,40 @@
 #!/usr/bin/env python3
 ''' basic code for Flask '''
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, abort
 from api.v1.views.index import app_views
+from api.v1.auth.auth import Auth
+from os import getenv
+import os
 
 
 app = Flask(__name__)
 app.register_blueprint(app_views)
+
+
+auth = None
+
+
+if os.getenv('AUTH_TYPE') == 'auth':
+    from api.v1.auth.auth import Auth
+    auth = Auth()
+
+
+@app.before_request
+def before_request():
+    ''' authenticates a user before processing a request '''
+    if auth:
+        excluded_paths = [
+                '/api/v1/status/',
+                '/api/v1/unauthorized/',
+                '/api/v1/forbidden/',
+        ]
+        if auth.require_auth(request.path, excluded_paths):
+            auth_header = auth.authorization_header(request)
+            user = auth.current_user(request)
+            if auth_header is None:
+                abort(401)
+            if user is None:
+                abort(403)
 
 
 @app.errorhandler(401)

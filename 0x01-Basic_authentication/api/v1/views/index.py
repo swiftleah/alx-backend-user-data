@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 ''' basic code for Flask application '''
-from flask import abort, Blueprint
+from flask import abort, Blueprint, jsonify
 
 
 app_views = Blueprint('app_views', __name__)
+
+
+@app_views.route('/api/v1/status', methods=['GET'], strict_slashes=False)
+def status() -> str:
+    ''' returns OK '''
+    return jsonify({"status": "OK"})
 
 
 @app_views.route('/api/v1/unauthorized', methods=['GET'], strict_slashes=False)
