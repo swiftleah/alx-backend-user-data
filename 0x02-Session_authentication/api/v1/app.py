@@ -1,59 +1,75 @@
 #!/usr/bin/env python3
-''' basic code for Flask '''
-from flask import Flask, jsonify, request, abort
-from api.v1.views.index import app_views
-from api.v1.auth.auth import Auth
-from api.v1.auth.basic_auth import BasicAuth
+"""Route module for the API"""
 from os import getenv
-import os
+from api.v1.views import app_views
+from flask import abort, Flask, jsonify, request
+from flask_cors import (CORS, cross_origin)
 
 
 app = Flask(__name__)
 app.register_blueprint(app_views)
-
+CORS(app, resources={r"/api/v1/*": {"origins": "*"}})
 
 auth = None
 
+auth_type = getenv('AUTH_TYPE')
 
-auth_type = os.getenv('AUTH_TYPE')
-
-
-if auth_type == 'basic_auth':
+if auth_type == 'auth':
+    from api.v1.auth.auth import Auth
+    auth = Auth()
+elif auth_type == 'basic_auth':
     from api.v1.auth.basic_auth import BasicAuth
     auth = BasicAuth()
-else:
-    auth = Auth()
+elif auth_type == 'session_auth':
+    from api.v1.auth.session_auth import SessionAuth
+    auth = SessionAuth()
 
 
 @app.before_request
 def before_request():
-    ''' authenticates a user before processing a request '''
-    auth = None
-    if app.config['AUTH_TYPE'] == 'basic_auth':
-        from api.v1.auth.basic_auth import BasicAuth
-        auth = BasicAuth()
-    elif app.config['AUTH_TYPE'] == 'session_auth':
-        from api.v1.auth.session_auth import SessionAuth
-        auth = SessionAuth()
-    if auth:
+    """Runs before every request"""
+    global auth
+
+    if not auth:
+        return
+
+    elif not auth.require_auth(request.path,
+                               ['/api/v1/status/',
+                                '/api/v1/unauthorized/',
+                                '/api/v1/forbidden/',
+                                '/api/v1/auth_session/login/']):
+        return
+
+    elif not auth.authorization_header(request) and \
+            not auth.session_cookie(request):
+        abort(401)
+
+    elif not auth.current_user(request):
+        abort(403)
+
+    else:
         request.current_user = auth.current_user(request)
+
+
+@app.errorhandler(404)
+def not_found(error) -> str:
+    """Not found handler"""
+    return jsonify({"error": "Not found"}), 404
 
 
 @app.errorhandler(401)
 def unauthorized(error) -> str:
-    ''' handles error 401 for unauthorized req '''
-    response = jsonify({"error": "Unauthorized"})
-    response.status_code = 401
-    return response
+    """Unauthorized error handler"""
+    return jsonify({"error": "Unauthorized"}), 401
 
 
 @app.errorhandler(403)
 def forbidden(error) -> str:
-    ''' handles error 403 - no access '''
-    response = jsonify({"error": "Forbidden"})
-    response.status_code = 403
-    return response
+    """Forbidden error handler"""
+    return jsonify({"error": "Forbidden"}), 403
 
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    host = getenv("API_HOST", "0.0.0.0")
+    port = getenv("API_PORT", "5000")
+    app.run(host=host, port=port)
