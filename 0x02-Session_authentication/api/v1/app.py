@@ -28,19 +28,15 @@ else:
 @app.before_request
 def before_request():
     ''' authenticates a user before processing a request '''
+    auth = None
+    if app.config['AUTH_TYPE'] == 'basic_auth':
+        from api.v1.auth.basic_auth import BasicAuth
+        auth = BasicAuth()
+    elif app.config['AUTH_TYPE'] == 'session_auth':
+        from api.v1.auth.session_auth import SessionAuth
+        auth = SessionAuth()
     if auth:
-        excluded_paths = [
-                '/api/v1/status/',
-                '/api/v1/unauthorized/',
-                '/api/v1/forbidden/',
-        ]
-        if auth.require_auth(request.path, excluded_paths):
-            auth_header = auth.authorization_header(request)
-            user = auth.current_user(request)
-            if auth_header is None:
-                abort(401)
-            if user is None:
-                abort(403)
+        request.current_user = auth.current_user(request)
 
 
 @app.errorhandler(401)
